@@ -10,8 +10,6 @@ import os
 EMAIL = os.getenv('EMAIL')
 APP_PASSWORD = os.getenv('APP_PASSWORD')
 
-SCAN_CLAUSE = "( {33489} ( ( {33489} ( daily macd histogram( 26,24,25 ) > 0 and 1 day ago macd histogram( 26,24,25 ) < 0 ) ) or( {33489} ( daily macd histogram( 26,24,25 ) < 0 and 1 day ago macd histogram( 26,24,25 ) > 0 ) ) ) )"
-
 def fetch_chartink_macd_screener():
     session = requests.Session()
     resp = session.get("https://chartink.com/screener")
