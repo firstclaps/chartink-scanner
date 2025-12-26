@@ -1,4 +1,4 @@
-name: Daily Futures MACD Scanner (5 PM IST)
+name: Daily Scanner (5 PM IST)
 on:
   schedule:
     - cron: '0 11 * * 1-5'  # 5 PM IST Mon-Fri
@@ -19,8 +19,8 @@ jobs:
       run: |
         pip install requests beautifulsoup4 pandas lxml
         
-    - name: Run Futures MACD Scanner
+    - name: Run Scanner
       env:
         EMAIL: ${{ secrets.EMAIL }}
         APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
-      run: python futures_daily_macd.py  # Your filename
+      run: python chartink_screener.py  # Your filename
