@@ -1,0 +1,18 @@
+[
+  {
+    "name": "MACD Histogram Crossover",
+    "clause": "( {33489} ( ( {33489} ( daily macd histogram( 26,24,25 ) > 0 and 1 day ago macd histogram( 26,24,25 ) < 0 ) ) or( {33489} ( daily macd histogram( 26,24,25 ) < 0 and 1 day ago macd histogram( 26,24,25 ) > 0 ) ) ) )"
+  },
+  {
+    "name": "Golden Cross (50/200 DMA)",
+    "clause": "( {33489} ( latest sma( close, 50 ) > latest sma( close, 200 ) and 1 day ago sma( close, 50 ) <= 1 day ago sma( close, 200 ) ) )"
+  },
+  {
+    "name": "RSI Oversold (<30)",
+    "clause": "( {33489} ( latest rsi( 14 ) < 30 ) )"
+  },
+  {
+    "name": "Volume Surge (>2x avg)",
+    "clause": "( {33489} ( latest volume > 2 * latest sma( volume, 20 ) ) )"
+  }
+]
