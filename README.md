@@ -1,0 +1,1 @@
+# chartink-scanner
