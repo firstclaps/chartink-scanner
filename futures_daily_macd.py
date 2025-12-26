@@ -71,9 +71,6 @@ if 0 <= datetime.now().weekday() <= 4:  # Mon-Fri only
         symbols = df["SYMBOL"].tolist()
         print(f"📈 Found {len(symbols)} stocks: {symbols[:5]}...")  # First 5
         
-        df.to_csv('futures_macd_symbols.csv', index=False)
-        print("💾 Saved futures_macd_symbols.csv")
-        
         send_email(symbols)
     else:
         print("❌ No MACD crossovers today")
