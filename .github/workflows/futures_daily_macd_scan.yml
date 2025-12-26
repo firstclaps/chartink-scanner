@@ -23,7 +23,7 @@ jobs:
       env:
         EMAIL: ${{ secrets.EMAIL }}
         APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
-      run: python daily_macd.py
+      run: python futures_daily_macd.py
         
     - name: Upload CSV
       uses: actions/upload-artifact@v4
