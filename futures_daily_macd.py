@@ -5,19 +5,33 @@ from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
 import os
+import json
 
 # GitHub Secrets
 EMAIL = os.getenv('EMAIL')
 APP_PASSWORD = os.getenv('APP_PASSWORD')
 
-def fetch_chartink_macd_screener():
+def load_scans():
+    """Load scans from external JSON"""
+    try:
+        with open('scans.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("❌ scans.json missing! Create it first.")
+        return []
+
+SCANS = load_scans()
+print(f"📋 Loaded {len(SCANS)} scans from scans.json")
+
+def fetch_chartink_scan(scan_name, scan_clause):
+    """Fetch results for ONE scan"""
     session = requests.Session()
     resp = session.get("https://chartink.com/screener")
     resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "lxml")
+    soup = BeautifulSoup(resp.text, "html.parser")  # ✅ Fixed parser
     csrf_token = soup.select_one('meta[name="csrf-token"]')['content']
     
-    payload = {"scan_clause": SCAN_CLAUSE}
+    payload = {"scan_clause": scan_clause}  # ✅ Uses scan_clause parameter
     session.headers["X-CSRF-TOKEN"] = csrf_token
     session.headers["Content-Type"] = "application/x-www-form-urlencoded"
     
@@ -26,24 +40,49 @@ def fetch_chartink_macd_screener():
     
     data = r.json()
     if not data.get("data") or len(data["data"]) == 0:
-        print("No stocks found")
-        return pd.DataFrame()
+        return []
     
     num_cols = len(data["data"][0])
     df = pd.DataFrame(data["data"])
     headers = ["S.No", "SYMBOL", "NAME", "","% from 52WH", "% from 52WL", "Price"][:num_cols]
     df.columns = headers
-    return df
+    return df["SYMBOL"].tolist()
 
-def send_email(symbols):
+def run_all_scans():
+    """Run ALL scans"""
+    all_results = {}
+    print("🔍 Running multi-scan...")
+    
+    for scan in SCANS:
+        print(f"  📊 {scan['name']}")
+        symbols = fetch_chartink_scan(scan['name'], scan['clause'])
+        all_results[scan['name']] = symbols
+        print(f"     {len(symbols)} stocks")
+    
+    return all_results
+
+def send_multi_scan_email(all_results):
+    """Single email with ALL scans"""
     if not EMAIL or not APP_PASSWORD:
-        print("⚠️ No email secrets - CSV saved only")
+        print("⚠️ No email secrets")
         return False
     
-    body = f"🔔 Daily Futures MACD ({len(symbols)} stocks) - {datetime.now().strftime('%Y-%m-%d')}\n\n" + "\n".join(f"• {s}" for s in symbols)
+    body_lines = [f"🔔 DAILY SCAN REPORT - {datetime.now().strftime('%Y-%m-%d')}\n"]
+    
+    total_stocks = 0
+    for scan_name, symbols in all_results.items():
+        body_lines.append(f"\n📊 {scan_name} ({len(symbols)} stocks):")
+        if symbols:
+            body_lines.extend([f"  • {s}" for s in symbols])
+        else:
+            body_lines.append("  (No stocks)")
+        total_stocks += len(symbols)
+    
+    body_lines.append(f"\n\n📈 TOTAL: {total_stocks} signals")
+    body = "\n".join(body_lines)
     
     msg = MIMEText(body)
-    msg['Subject'] = f'Futures MACD Signals - {datetime.now().strftime("%Y-%m-%d")}'
+    msg['Subject'] = f'Scan Report - {datetime.now().strftime("%Y-%m-%d")}'
     msg['From'] = EMAIL
     msg['To'] = EMAIL
     
@@ -60,17 +99,11 @@ def send_email(symbols):
         return False
 
 # MAIN EXECUTION
-print(f"🕐 Running Futures MACD Scanner: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
+print(f"🕐 Multi-Scan: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
 
-if 0 <= datetime.now().weekday() <= 4:  # Mon-Fri only
-    df = fetch_chartink_macd_screener()
-    
-    if not df.empty:
-        symbols = df["SYMBOL"].tolist()
-        print(f"📈 Found {len(symbols)} stocks: {symbols[:5]}...")  # First 5
-        
-        send_email(symbols)
-    else:
-        print("❌ No MACD crossovers today")
+if 0 <= datetime.now().weekday() <= 4:
+    all_results = run_all_scans()
+    send_multi_scan_email(all_results)
+    print("🎉 Complete!")
 else:
-    print("⏭️ Weekend - Skipping")
+    print("⏭️ Weekend")
