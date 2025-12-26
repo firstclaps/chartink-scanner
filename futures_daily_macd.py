@@ -62,26 +62,29 @@ def run_all_scans():
     return all_results
 
 def send_multi_scan_email(all_results):
-    """Single email with ALL scans"""
+    """Clean email format - Just bold scan names + stocks"""
     if not EMAIL or not APP_PASSWORD:
         print("⚠️ No email secrets")
         return False
     
-    body_lines = [f"🔔 DAILY SCAN REPORT - {datetime.now().strftime('%Y-%m-%d')}\n"]
+    body_lines = [f"DAILY SCAN REPORT - {datetime.now().strftime('%Y-%m-%d')}\n"]
     
-    total_stocks = 0
     for scan_name, symbols in all_results.items():
-        body_lines.append(f"\n📊 {scan_name} ({len(symbols)} stocks):")
+        body_lines.append(f"\n{'='*80}")
+        body_lines.append(f"**{scan_name}** ({len(symbols)} stocks)")
+        body_lines.append(f"{'='*80}")
+        
         if symbols:
-            body_lines.extend([f"  • {s}" for s in symbols])
+            for symbol in symbols[:20]:  # Top 20 stocks
+                body_lines.append(f"{symbol}")
+            if len(symbols) > 20:
+                body_lines.append(f"... and {len(symbols)-20} more")
         else:
-            body_lines.append("  (No stocks)")
-        total_stocks += len(symbols)
+            body_lines.append("No stocks matching criteria today")
     
-    body_lines.append(f"\n\n📈 TOTAL: {total_stocks} signals")
     body = "\n".join(body_lines)
     
-    msg = MIMEText(body)
+    msg = MIMEText(body, 'plain')
     msg['Subject'] = f'Scan Report - {datetime.now().strftime("%Y-%m-%d")}'
     msg['From'] = EMAIL
     msg['To'] = EMAIL
@@ -92,11 +95,12 @@ def send_multi_scan_email(all_results):
         server.login(EMAIL, APP_PASSWORD)
         server.send_message(msg)
         server.quit()
-        print("✅ EMAIL SENT!")
+        print("✅ CLEAN EMAIL SENT!")
         return True
     except Exception as e:
         print(f"❌ Email failed: {e}")
         return False
+
 
 # MAIN EXECUTION
 print(f"🕐 Multi-Scan: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
