@@ -24,4 +24,4 @@ jobs:
       env:
         EMAIL: ${{ secrets.EMAIL }}
         APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
-      run: python daily_macd.py
+      run: futues_daily_macd.py
