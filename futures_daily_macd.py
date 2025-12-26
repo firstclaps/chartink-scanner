@@ -67,7 +67,7 @@ def send_multi_scan_email(all_results):
         print("⚠️ No email secrets")
         return False
     
-    body_lines = [f"DAILY SCAN REPORT - {datetime.now().strftime('%Y-%m-%d')}\n"]
+    body_lines = [f"\n"]
     
     for scan_name, symbols in all_results.items():
         body_lines.append(f"\n{'='*80}")
