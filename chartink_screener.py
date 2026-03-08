@@ -105,7 +105,7 @@ def send_multi_scan_email(all_results):
 # MAIN EXECUTION
 print(f"🕐 Multi-Scan: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
 
-if 0 >= datetime.now().weekday():
+if 0 <= datetime.now().weekday():
     all_results = run_all_scans()
     send_multi_scan_email(all_results)
     print("🎉 Complete!")
