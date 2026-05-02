@@ -1,15 +1,17 @@
+import sys
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 from datetime import datetime
-import smtplib
-from email.mime.text import MIMEText
 import os
 import json
 
-# GitHub Secrets
-EMAIL = os.getenv('EMAIL')
-APP_PASSWORD = os.getenv('APP_PASSWORD')
+# Fix emoji encoding on Windows
+sys.stdout.reconfigure(encoding='utf-8')
+
+# Telegram Configuration
+TELEGRAM_BOT_TOKEN = "8629766647:AAH_0v4VjIjZl_81YkjQRKqqyMjX5cFGfVk"
+TELEGRAM_CHAT_ID = 5666485726
 
 def load_scans():
     """Load scans from external JSON"""
@@ -61,45 +63,44 @@ def run_all_scans():
     
     return all_results
 
-def send_multi_scan_email(all_results):
-    """Clean email format - Just bold scan names + stocks"""
-    if not EMAIL or not APP_PASSWORD:
-        print("⚠️ No email secrets")
+def send_telegram(msg):
+    """Send message to Telegram"""
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    try:
+        response = requests.post(url, data={
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": msg
+        })
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"❌ Telegram failed: {e}")
         return False
-    
-    body_lines = [f"\n"]
+
+def send_multi_scan_telegram(all_results):
+    """Format results and send via Telegram"""
+    body_lines = [f"📊 Scan Report - {datetime.now().strftime('%Y-%m-%d %H:%M IST')}\n"]
     
     for scan_name, symbols in all_results.items():
-        body_lines.append(f"\n{'='*80}")
-        body_lines.append(f"**{scan_name}** ({len(symbols)} stocks)")
-        body_lines.append(f"{'='*80}")
+        body_lines.append(f"\n{'='*40}")
+        body_lines.append(f"🔍 {scan_name}")
+        body_lines.append(f"📈 {len(symbols)} stocks")
+        body_lines.append(f"{'='*40}")
         
         if symbols:
-            for symbol in symbols[:20]:  # Top 20 stocks
-                body_lines.append(f"{symbol}")
-            if len(symbols) > 20:
-                body_lines.append(f"... and {len(symbols)-20} more")
+            for symbol in symbols[:15]:  # Top 15 stocks for Telegram
+                body_lines.append(f"  • {symbol}")
+            if len(symbols) > 15:
+                body_lines.append(f"  ... and {len(symbols)-15} more")
         else:
             body_lines.append("No stocks matching criteria today")
     
     body = "\n".join(body_lines)
     
-    msg = MIMEText(body, 'plain')
-    msg['Subject'] = f'Scan Report - {datetime.now().strftime("%Y-%m-%d")}'
-    msg['From'] = EMAIL
-    msg['To'] = EMAIL
-    
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(EMAIL, APP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        print("✅ CLEAN EMAIL SENT!")
+    if send_telegram(body):
+        print("✅ TELEGRAM MESSAGE SENT!")
         return True
-    except Exception as e:
-        print(f"❌ Email failed: {e}")
-        return False
+    return False
 
 
 # MAIN EXECUTION
@@ -107,7 +108,7 @@ print(f"🕐 Multi-Scan: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
 
 if 0 <= datetime.now().weekday():
     all_results = run_all_scans()
-    send_multi_scan_email(all_results)
+    send_multi_scan_telegram(all_results)
     print("🎉 Complete!")
 else:
     print("⏭️ Weekend")
