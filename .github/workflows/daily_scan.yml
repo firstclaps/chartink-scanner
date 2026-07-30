@@ -3,26 +3,21 @@ on:
   schedule:
     - cron: '0 11 * * 1-5'  # 5 PM IST Mon-Fri
   workflow_dispatch:
-
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-      with:
-        ref: feature/telegram-sms
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    
-    - name: Install packages + lxml
-      run: |
-        pip install requests beautifulsoup4 pandas lxml
-        
+
+    - name: Install packages
+      run: pip install -r requirements.txt
+
     - name: Run Scanner
       env:
-        EMAIL: ${{ secrets.EMAIL }}
-        APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
-      run: python chartink_screener.py  # Your filename
+        FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      run: python chartink_screener.py

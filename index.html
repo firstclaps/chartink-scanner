@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scan Board — Chartink Screener</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0F1420;
+    --surface: #171E2E;
+    --surface-2: #1D2536;
+    --border: #2A3348;
+    --text: #E8E6DE;
+    --text-muted: #8892A6;
+    --gold: #D4A24C;
+    --teal: #4FB0A5;
+    --rust: #C4644B;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; }
+
+  /* ---------- Header ---------- */
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .brand span { color: var(--gold); }
+
+  .updated {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .updated strong { color: var(--text); font-weight: 500; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .date-select {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .date-select:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Ticker ---------- */
+  .ticker-wrap {
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+  }
+
+  .ticker-wrap::before, .ticker-wrap::after {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 40px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .ticker-wrap::before { left: 0; background: linear-gradient(90deg, var(--surface-2), transparent); }
+  .ticker-wrap::after { right: 0; background: linear-gradient(-90deg, var(--surface-2), transparent); }
+
+  .ticker {
+    display: inline-block;
+    padding: 10px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    animation: scroll-left 60s linear infinite;
+  }
+
+  .ticker span.sym {
+    color: var(--gold);
+    margin: 0 20px;
+  }
+  .ticker span.sym::after {
+    content: "•";
+    color: var(--border);
+    margin-left: 20px;
+  }
+
+  @keyframes scroll-left {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ticker { animation: none; }
+  }
+
+  /* ---------- Main ---------- */
+  main {
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .state {
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    padding: 60px 0;
+    text-align: center;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .scan-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    line-height: 1.3;
+  }
+
+  .count-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .count-badge.has-results { background: rgba(79,176,165,0.15); color: var(--teal); }
+  .count-badge.no-results { background: rgba(196,100,75,0.12); color: var(--rust); }
+
+  .symbols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 4px 9px;
+    border-radius: 5px;
+    color: var(--text);
+  }
+
+  .empty-note {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .more-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    align-self: center;
+    padding: 4px 2px;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">SCAN<span>BOARD</span></div>
+  <div class="header-right">
+    <select id="dateSelect" class="date-select">
+      <option>loading dates…</option>
+    </select>
+    <div class="updated" id="updated"></div>
+  </div>
+</header>
+
+<div class="ticker-wrap">
+  <div class="ticker" id="ticker">Loading symbols…</div>
+</div>
+
+<main>
+  <div id="content" class="state">Fetching latest scan…</div>
+</main>
+
+<footer>Chartink screener results · updated daily via GitHub Actions</footer>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // ---- Fill this in with your Firebase project's web app config ----
+  // Firebase Console → Project settings → General → Your apps → SDK setup and configuration
+  const firebaseConfig = {
+  apiKey: "AIzaSyDoxMDKdMO1hQlFDuRh7-4X0D-gla1ZbiU",
+  authDomain: "chartink-scanner-9d978.firebaseapp.com",
+  projectId: "chartink-scanner-9d978",
+  storageBucket: "chartink-scanner-9d978.firebasestorage.app",
+  messagingSenderId: "177008142853",
+  appId: "1:177008142853:web:67352cd2e49830574c4a6c"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const contentEl = document.getElementById('content');
+  const updatedEl = document.getElementById('updated');
+  const tickerEl = document.getElementById('ticker');
+  const dateSelectEl = document.getElementById('dateSelect');
+
+  // Populate the dropdown with the last 30 dated docs (excludes the 'latest' pointer doc)
+  async function loadDateList() {
+    try {
+      const q = query(collection(db, "scans"), orderBy("date", "desc"), limit(31));
+      const snap = await getDocs(q);
+
+      const dates = snap.docs
+        .filter(d => d.id !== 'latest')
+        .map(d => d.data().date)
+        .filter(Boolean)
+        .slice(0, 30);
+
+      if (!dates.length) {
+        dateSelectEl.innerHTML = '<option>No data yet</option>';
+        return;
+      }
+
+      dateSelectEl.innerHTML = dates
+        .map((d, i) => `<option value="${d}">${d}${i === 0 ? ' (latest)' : ''}</option>`)
+        .join('');
+
+      dateSelectEl.addEventListener('change', () => loadScans(dateSelectEl.value));
+    } catch (err) {
+      console.error(err);
+      dateSelectEl.innerHTML = '<option>Couldn\'t load dates</option>';
+    }
+  }
+
+  async function loadScans(dateId) {
+    contentEl.className = 'state';
+    contentEl.textContent = 'Fetching scan…';
+    try {
+      const docId = dateId || 'latest';
+      const snap = await getDoc(doc(db, "scans", docId));
+
+      if (!snap.exists()) {
+        contentEl.textContent = "No scan data for this date.";
+        updatedEl.textContent = "";
+        tickerEl.textContent = "No data";
+        return;
+      }
+
+      render(snap.data());
+    } catch (err) {
+      console.error(err);
+      contentEl.textContent = "Couldn't load scan data. Check the Firebase config in this page and Firestore rules.";
+      updatedEl.textContent = "";
+    }
+  }
+
+  function render(data) {
+    updatedEl.innerHTML = `Last updated <strong>${data.timestamp || data.date || ''}</strong>`;
+
+    const scanEntries = Object.entries(data.scans || {});
+
+    // ---- ticker: every matched symbol across every scan ----
+    const allSymbols = scanEntries.flatMap(([, s]) => s.symbols || []);
+    if (allSymbols.length) {
+      const tapeItems = allSymbols.map(sym => `<span class="sym">${escapeHtml(sym)}</span>`).join('');
+      tickerEl.innerHTML = tapeItems + tapeItems; // duplicated for seamless loop
+    } else {
+      tickerEl.textContent = "No stocks matched any scan today";
+    }
+
+    // ---- cards ----
+    if (!scanEntries.length) {
+      contentEl.className = 'state';
+      contentEl.textContent = "No scans configured.";
+      return;
+    }
+
+    contentEl.className = 'grid';
+    contentEl.innerHTML = scanEntries.map(([name, s]) => {
+      const symbols = s.symbols || [];
+      const count = s.count ?? symbols.length;
+      const shown = symbols.slice(0, 30);
+      const remaining = symbols.length - shown.length;
+
+      return `
+        <div class="card">
+          <div class="card-head">
+            <div class="scan-name">${escapeHtml(name)}</div>
+            <div class="count-badge ${count ? 'has-results' : 'no-results'}">${count} stock${count === 1 ? '' : 's'}</div>
+          </div>
+          ${
+            symbols.length
+              ? `<div class="symbols">
+                  ${shown.map(sym => `<div class="chip">${escapeHtml(sym)}</div>`).join('')}
+                  ${remaining > 0 ? `<div class="more-note">+${remaining} more</div>` : ''}
+                 </div>`
+              : `<div class="empty-note">No stocks matching criteria today</div>`
+          }
+        </div>
+      `;
+    }).join('');
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+  }
+
+  loadDateList();
+  loadScans(); // defaults to 'latest'
+</script>
+
+</body>
+</html>

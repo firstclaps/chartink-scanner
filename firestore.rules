@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /scans/{document=**} {
+      allow read: if true;   // page can read scan results
+      allow write: if false; // only the Admin SDK (GitHub Action) can write, it bypasses rules
+    }
+  }
+}
