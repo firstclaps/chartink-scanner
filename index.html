@@ -3,245 +3,259 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Scan Board — Chartink Screener</title>
+<title>Scan Ledger — Chartink Screener</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0F1420;
-    --surface: #171E2E;
-    --surface-2: #1D2536;
-    --border: #2A3348;
-    --text: #E8E6DE;
-    --text-muted: #8892A6;
-    --gold: #D4A24C;
-    --teal: #4FB0A5;
-    --rust: #C4644B;
+    --page: #F2F4F7;
+    --card: #FFFFFF;
+    --ink: #1C2430;
+    --muted: #6B7280;
+    --rule: #E4E8EF;
+    --navy: #0A2540;
+    --blue: #0B63CE;
+    --blue-tint: #EAF2FC;
+    --green: #157A45;
+    --red: #C93A2E;
   }
 
   * { box-sizing: border-box; }
 
   body {
     margin: 0;
-    background: var(--bg);
-    color: var(--text);
+    background: var(--page);
+    color: var(--ink);
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 
-  a { color: inherit; }
-
   /* ---------- Header ---------- */
   header {
-    padding: 28px 32px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .brand {
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 700;
-    font-size: 1.5rem;
-    letter-spacing: -0.02em;
-  }
-
-  .brand span { color: var(--gold); }
-
-  .updated {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-  }
-
-  .updated strong { color: var(--text); font-weight: 500; }
-
-  .header-right {
+    padding: 18px 32px;
+    background: var(--navy);
     display: flex;
     align-items: center;
-    gap: 14px;
+    justify-content: space-between;
     flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .masthead {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 1.3rem;
+    color: #FFFFFF;
+    line-height: 1;
+  }
+
+  .masthead .sub {
+    display: block;
+    font-weight: 500;
+    font-size: 0.72rem;
+    color: #9FB4CC;
+    margin-top: 5px;
   }
 
   .date-select {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.82rem;
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: #FFFFFF;
+    color: var(--ink);
+    border: 1px solid transparent;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 8px 12px;
     cursor: pointer;
   }
-  .date-select:focus-visible {
-    outline: 2px solid var(--gold);
-    outline-offset: 2px;
+  .date-select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  /* ---------- Layout ---------- */
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    max-width: 1180px;
+    margin: 24px auto;
+    gap: 20px;
+    padding: 0 32px;
   }
 
-  /* ---------- Ticker ---------- */
-  .ticker-wrap {
-    background: var(--surface-2);
-    border-bottom: 1px solid var(--border);
-    overflow: hidden;
-    white-space: nowrap;
-    position: relative;
+  @media (max-width: 760px) {
+    .layout { grid-template-columns: 1fr; margin: 16px auto; padding: 0 16px; }
   }
 
-  .ticker-wrap::before, .ticker-wrap::after {
-    content: "";
-    position: absolute;
-    top: 0; bottom: 0;
-    width: 40px;
-    z-index: 2;
-    pointer-events: none;
-  }
-  .ticker-wrap::before { left: 0; background: linear-gradient(90deg, var(--surface-2), transparent); }
-  .ticker-wrap::after { right: 0; background: linear-gradient(-90deg, var(--surface-2), transparent); }
-
-  .ticker {
-    display: inline-block;
-    padding: 10px 0;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85rem;
-    animation: scroll-left 60s linear infinite;
+  /* ---------- Sidebar (tabs) ---------- */
+  .sidebar {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 8px 0;
+    align-self: start;
   }
 
-  .ticker span.sym {
-    color: var(--gold);
-    margin: 0 20px;
-  }
-  .ticker span.sym::after {
-    content: "•";
-    color: var(--border);
-    margin-left: 20px;
-  }
-
-  @keyframes scroll-left {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
+  .sidebar-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 20px 8px;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .ticker { animation: none; }
+  .tab {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    background: none;
+    border: none;
+    border-left: 3px solid transparent;
+    text-align: left;
+    padding: 11px 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
   }
+
+  .tab:hover { background: var(--blue-tint); }
+
+  .tab.active {
+    border-left-color: var(--blue);
+    background: var(--blue-tint);
+    color: var(--blue);
+  }
+
+  .tab-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--rule);
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+  .tab.active .tab-count { color: #FFFFFF; background: var(--blue); }
 
   /* ---------- Main ---------- */
-  main {
-    padding: 32px;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
+  main { min-width: 0; }
 
   .state {
-    color: var(--text-muted);
-    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
     font-size: 0.9rem;
     padding: 60px 0;
     text-align: center;
   }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 20px;
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
   }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px 22px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .card-head {
+  .panel-head {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--rule);
+    flex-wrap: wrap;
   }
 
-  .scan-name {
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 600;
+  .panel-title {
+    font-weight: 700;
     font-size: 1.05rem;
-    line-height: 1.3;
   }
 
-  .count-badge {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-    font-weight: 500;
-    padding: 3px 9px;
+  .stamp {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 5px 12px;
     border-radius: 100px;
+    background: var(--blue-tint);
+    color: var(--blue);
     white-space: nowrap;
   }
-  .count-badge.has-results { background: rgba(79,176,165,0.15); color: var(--teal); }
-  .count-badge.no-results { background: rgba(196,100,75,0.12); color: var(--rust); }
+  .stamp.none { background: var(--rule); color: var(--muted); }
 
-  .symbols {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+  table.ledger {
+    width: 100%;
+    border-collapse: collapse;
   }
 
-  .chip {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    padding: 4px 9px;
-    border-radius: 5px;
-    color: var(--text);
+  table.ledger thead th {
+    text-align: left;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 10px 20px;
+    background: #FAFBFC;
+    border-bottom: 1px solid var(--rule);
   }
+
+  table.ledger tbody td {
+    padding: 11px 20px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.9rem;
+  }
+
+  table.ledger tbody tr:last-child td { border-bottom: none; }
+  table.ledger tbody tr:hover td { background: var(--blue-tint); }
+
+  td.rank {
+    color: var(--muted);
+    width: 48px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  td.symbol { font-weight: 600; }
+
+  .sym-link {
+    color: var(--blue);
+    text-decoration: none;
+  }
+  .sym-link:hover { text-decoration: underline; }
 
   .empty-note {
-    font-size: 0.85rem;
-    color: var(--text-muted);
+    padding: 30px 20px;
+    text-align: center;
+    color: var(--muted);
     font-style: italic;
-  }
-
-  .more-note {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    align-self: center;
-    padding: 4px 2px;
   }
 
   footer {
     text-align: center;
-    padding: 30px;
+    padding: 24px;
     font-size: 0.75rem;
-    color: var(--text-muted);
-    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
   }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="brand">SCAN<span>BOARD</span></div>
-  <div class="header-right">
-    <select id="dateSelect" class="date-select">
-      <option>loading dates…</option>
-    </select>
-    <div class="updated" id="updated"></div>
+  <div class="masthead">
+    Scan Ledger
+    <span class="sub" id="updated">loading…</span>
   </div>
+  <select id="dateSelect" class="date-select">
+    <option>loading dates…</option>
+  </select>
 </header>
 
-<div class="ticker-wrap">
-  <div class="ticker" id="ticker">Loading symbols…</div>
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-label">Scans</div>
+  </nav>
+  <main>
+    <div id="content" class="state">Fetching latest scan…</div>
+  </main>
 </div>
-
-<main>
-  <div id="content" class="state">Fetching latest scan…</div>
-</main>
 
 <footer>Chartink screener results · updated daily via GitHub Actions</footer>
 
@@ -250,7 +264,6 @@
   import { getFirestore, doc, getDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   // ---- Fill this in with your Firebase project's web app config ----
-  // Firebase Console → Project settings → General → Your apps → SDK setup and configuration
   const firebaseConfig = {
   apiKey: "AIzaSyDoxMDKdMO1hQlFDuRh7-4X0D-gla1ZbiU",
   authDomain: "chartink-scanner-9d978.firebaseapp.com",
@@ -265,10 +278,12 @@
 
   const contentEl = document.getElementById('content');
   const updatedEl = document.getElementById('updated');
-  const tickerEl = document.getElementById('ticker');
   const dateSelectEl = document.getElementById('dateSelect');
+  const sidebarEl = document.getElementById('sidebar');
 
-  // Populate the dropdown with the last 30 dated docs (excludes the 'latest' pointer doc)
+  let currentData = null;
+  let activeScan = null;
+
   async function loadDateList() {
     try {
       const q = query(collection(db, "scans"), orderBy("date", "desc"), limit(31));
@@ -306,11 +321,13 @@
       if (!snap.exists()) {
         contentEl.textContent = "No scan data for this date.";
         updatedEl.textContent = "";
-        tickerEl.textContent = "No data";
+        sidebarEl.innerHTML = '<div class="sidebar-label">Scans</div>';
         return;
       }
 
-      render(snap.data());
+      currentData = snap.data();
+      activeScan = null;
+      render();
     } catch (err) {
       console.error(err);
       contentEl.textContent = "Couldn't load scan data. Check the Firebase config in this page and Firestore rules.";
@@ -318,51 +335,63 @@
     }
   }
 
-  function render(data) {
-    updatedEl.innerHTML = `Last updated <strong>${data.timestamp || data.date || ''}</strong>`;
+  function render() {
+    updatedEl.textContent = currentData.timestamp || currentData.date || '';
 
-    const scanEntries = Object.entries(data.scans || {});
-
-    // ---- ticker: every matched symbol across every scan ----
-    const allSymbols = scanEntries.flatMap(([, s]) => s.symbols || []);
-    if (allSymbols.length) {
-      const tapeItems = allSymbols.map(sym => `<span class="sym">${escapeHtml(sym)}</span>`).join('');
-      tickerEl.innerHTML = tapeItems + tapeItems; // duplicated for seamless loop
-    } else {
-      tickerEl.textContent = "No stocks matched any scan today";
-    }
-
-    // ---- cards ----
+    const scanEntries = Object.entries(currentData.scans || {});
     if (!scanEntries.length) {
+      sidebarEl.innerHTML = '<div class="sidebar-label">Scans</div>';
       contentEl.className = 'state';
       contentEl.textContent = "No scans configured.";
       return;
     }
 
-    contentEl.className = 'grid';
-    contentEl.innerHTML = scanEntries.map(([name, s]) => {
-      const symbols = s.symbols || [];
-      const count = s.count ?? symbols.length;
-      const shown = symbols.slice(0, 30);
-      const remaining = symbols.length - shown.length;
+    if (!activeScan) activeScan = scanEntries[0][0];
 
+    sidebarEl.innerHTML = '<div class="sidebar-label">Scans</div>' + scanEntries.map(([name, s]) => {
+      const count = s.count ?? (s.symbols || []).length;
+      const isActive = name === activeScan;
       return `
-        <div class="card">
-          <div class="card-head">
-            <div class="scan-name">${escapeHtml(name)}</div>
-            <div class="count-badge ${count ? 'has-results' : 'no-results'}">${count} stock${count === 1 ? '' : 's'}</div>
-          </div>
-          ${
-            symbols.length
-              ? `<div class="symbols">
-                  ${shown.map(sym => `<div class="chip">${escapeHtml(sym)}</div>`).join('')}
-                  ${remaining > 0 ? `<div class="more-note">+${remaining} more</div>` : ''}
-                 </div>`
-              : `<div class="empty-note">No stocks matching criteria today</div>`
-          }
-        </div>
+        <button class="tab ${isActive ? 'active' : ''}" data-scan="${escapeHtml(name)}">
+          <span>${escapeHtml(name)}</span>
+          <span class="tab-count">${count}</span>
+        </button>
       `;
     }).join('');
+
+    sidebarEl.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeScan = btn.getAttribute('data-scan');
+        render();
+      });
+    });
+
+    renderPanel(activeScan, currentData.scans[activeScan]);
+  }
+
+  function renderPanel(name, s) {
+    const symbols = s.symbols || [];
+    const count = s.count ?? symbols.length;
+
+    contentEl.className = '';
+    contentEl.innerHTML = `
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">${escapeHtml(name)}</div>
+          <div class="stamp ${count ? '' : 'none'}">${count} match${count === 1 ? '' : 'es'}</div>
+        </div>
+        ${
+          symbols.length
+            ? `<table class="ledger">
+                <thead><tr><th>#</th><th>Symbol</th></tr></thead>
+                <tbody>
+                  ${symbols.map((sym, i) => `<tr><td class="rank">${i + 1}</td><td class="symbol"><a class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(sym)}" target="_blank" rel="noopener">${escapeHtml(sym)}</a></td></tr>`).join('')}
+                </tbody>
+               </table>`
+            : `<div class="empty-note">No stocks matched this scan on this date</div>`
+        }
+      </div>
+    `;
   }
 
   function escapeHtml(str) {
@@ -372,7 +401,7 @@
   }
 
   loadDateList();
-  loadScans(); // defaults to 'latest'
+  loadScans();
 </script>
 
 </body>
