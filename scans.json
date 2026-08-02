@@ -1,6 +1,6 @@
 [
   {
-    "name": "MACD Daily Green",
+    "name": "MACD Daily Green(24,26,25)",
     "clause": "( {cash} ( daily macd histogram( 26,24,25 ) > 0 and 1 day ago macd histogram( 26,24,25 ) < 0 and daily close > 50 and daily volume > 10000 ) )"
   },
   {
