@@ -228,6 +228,11 @@
     font-style: italic;
   }
 
+  .pct-up { color: var(--green); font-weight: 600; }
+  .pct-down { color: var(--red); font-weight: 600; }
+  .pct-flat { color: var(--ink); }
+  .pct-na { color: var(--muted); }
+
   footer {
     text-align: center;
     padding: 24px;
@@ -265,13 +270,13 @@
 
   // ---- Fill this in with your Firebase project's web app config ----
   const firebaseConfig = {
-  apiKey: "AIzaSyDoxMDKdMO1hQlFDuRh7-4X0D-gla1ZbiU",
-  authDomain: "chartink-scanner-9d978.firebaseapp.com",
-  projectId: "chartink-scanner-9d978",
-  storageBucket: "chartink-scanner-9d978.firebasestorage.app",
-  messagingSenderId: "177008142853",
-  appId: "1:177008142853:web:67352cd2e49830574c4a6c"
-};
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
@@ -369,9 +374,17 @@
     renderPanel(activeScan, currentData.scans[activeScan]);
   }
 
+  function fmtPct(val) {
+    if (val === null || val === undefined) return '<span class="pct-na">—</span>';
+    const cls = val > 0 ? 'pct-up' : (val < 0 ? 'pct-down' : 'pct-flat');
+    const sign = val > 0 ? '+' : '';
+    return `<span class="${cls}">${sign}${val}%</span>`;
+  }
+
   function renderPanel(name, s) {
     const symbols = s.symbols || [];
     const count = s.count ?? symbols.length;
+    const returnsMap = currentData.returns || {};
 
     contentEl.className = '';
     contentEl.innerHTML = `
@@ -383,9 +396,20 @@
         ${
           symbols.length
             ? `<table class="ledger">
-                <thead><tr><th>#</th><th>Symbol</th></tr></thead>
+                <thead><tr><th>#</th><th>Symbol</th><th>Price</th><th>Day</th><th>1W</th><th>1M</th><th>3M</th></tr></thead>
                 <tbody>
-                  ${symbols.map((sym, i) => `<tr><td class="rank">${i + 1}</td><td class="symbol"><a class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(sym)}" target="_blank" rel="noopener">${escapeHtml(sym)}</a></td></tr>`).join('')}
+                  ${symbols.map((sym, i) => {
+                    const r = returnsMap[sym] || {};
+                    return `<tr>
+                      <td class="rank">${i + 1}</td>
+                      <td class="symbol"><a class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(sym)}" target="_blank" rel="noopener">${escapeHtml(sym)}</a></td>
+                      <td>${r.price != null ? '₹' + r.price : '<span class="pct-na">—</span>'}</td>
+                      <td>${fmtPct(r.day)}</td>
+                      <td>${fmtPct(r.week)}</td>
+                      <td>${fmtPct(r.month)}</td>
+                      <td>${fmtPct(r.three_month)}</td>
+                    </tr>`;
+                  }).join('')}
                 </tbody>
                </table>`
             : `<div class="empty-note">No stocks matched this scan on this date</div>`

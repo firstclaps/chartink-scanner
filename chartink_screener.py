@@ -138,7 +138,7 @@ YAHOO_HEADERS = {
 
 
 def _empty_returns():
-    return {"day": None, "week": None, "month": None, "three_month": None}
+    return {"price": None, "day": None, "week": None, "month": None, "three_month": None}
 
 
 def fetch_symbol_history(symbol):
@@ -203,6 +203,7 @@ def compute_returns(symbols):
             )
 
             returns[symbol] = {
+                "price": round(latest_close, 2),
                 "day": day_return,
                 "week": pct_change_from(7),
                 "month": pct_change_from(30),
