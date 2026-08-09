@@ -267,13 +267,15 @@ def push_to_firestore(all_results):
 
 
 # MAIN EXECUTION
+all_results = run_all_scans()
+push_to_firestore(all_results)
 today_str = datetime.now().strftime('%Y-%m-%d')
 print(f"🕐 Multi-Scan: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
 
 if datetime.now().weekday() >= 5:
     print("⏭️ Weekend — skipping")
 else:
-    all_results = run_all_scans()
+    
     # send_multi_scan_email(all_results)  # disabled — data now lives in Firestore / the dashboard
-    push_to_firestore(all_results)
+    
     print("🎉 Complete!")
