@@ -4,6 +4,18 @@
     "clause": "( {cash} ( daily macd histogram( 26,24,25 ) > 0 and 1 day ago macd histogram( 26,24,25 ) < 0 and daily close > 50 and daily volume > 10000 ) )"
   },
   {
+    "name": "MACD Daily Green(24,26,50)",
+    "clause": "( {cash} ( daily macd histogram( 26,24,50 ) > 0 and 1 day ago macd histogram( 26,24,50 ) < 0 and daily close > 50 and daily volume > 10000 ) )"
+  },
+  {
+    "name": "MACD Weekly Green(24,26,50)",
+    "clause": "( {cash} ( weekly macd histogram( 26,24,50 ) > 0 and 1 week ago macd histogram( 26,24,50 ) < 0 and weekly close > 50 and weekly volume > 10000 ) )"
+  },
+  {
+    "name": "MACD Monthly Green(24,26,50)",
+    "clause": "( {cash} ( monthly macd histogram( 26,24,50 ) > 0 and 1 month ago macd histogram( 26,24,50 ) < 0 and monthly close > 50 and monthly volume > 10000 ) )"
+  },
+  {
     "name": "Daily Golder Cross",
     "clause": "( {cash} ( daily ema( close,50 ) >= daily ema( close,200 ) and 1 day ago ema( close,50 ) <= 1 day ago ema( close,200 ) and market cap > 500 ) ) "
   },
