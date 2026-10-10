@@ -14,5 +14,9 @@
   {
     "name": "Weekly RSI > 70",
     "clause": "( {57960} ( weekly rsi( 14 ) > 70 and 1 week ago rsi( 14 ) < 70 ) )"
+  },
+  {
+    "name": "New ATh",
+    "clause": "( {cash} (  1 day ago close <  1 day ago max( 252 ,  1 day ago close ) and  daily close =  daily max( 252 ,  daily close ) ) )"
   }
 ]

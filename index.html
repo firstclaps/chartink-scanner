@@ -288,6 +288,10 @@
 
   let currentData = null;
   let activeScan = null;
+  // Track sort state per-scan so sorting persists when switching scans
+  const sortStates = {};
+  // Cached returns from the latest scan doc (used to compute return since scan)
+  let latestReturns = null;
 
   async function loadDateList() {
     try {
@@ -316,6 +320,31 @@
     }
   }
 
+  // Fetch current/live prices for a list of symbols using Yahoo Finance (no API key)
+  async function fetchLivePrices(symbols) {
+    const uniq = Array.from(new Set((symbols || []).filter(Boolean)));
+    if (!uniq.length) return {};
+    // Yahoo expects NSE symbols with .NS suffix
+    const q = uniq.map(s => encodeURIComponent(s + '.NS')).join(',');
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`;
+    try {
+      const resp = await fetch(url);
+      const json = await resp.json();
+      const results = (json && json.quoteResponse && json.quoteResponse.result) || [];
+      const map = {};
+      results.forEach(r => {
+        const full = r.symbol || '';
+        const sym = full.replace(/\.NS$/i, '');
+        if (r.regularMarketPrice != null) map[sym] = Number(r.regularMarketPrice);
+      });
+      return map;
+    } catch (e) {
+      console.warn('Live price fetch failed', e);
+      return {};
+    }
+  }
+
+
   async function loadScans(dateId) {
     contentEl.className = 'state';
     contentEl.textContent = 'Fetching scan…';
@@ -332,6 +361,19 @@
 
       currentData = snap.data();
       activeScan = null;
+      // Fetch the `latest` doc so we can compute returns from this scan date to the latest checking date.
+      if (docId !== 'latest') {
+        try {
+          const latestSnap = await getDoc(doc(db, "scans", "latest"));
+          latestReturns = latestSnap && latestSnap.exists() ? (latestSnap.data().returns || {}) : {};
+        } catch (e) {
+          console.warn('Could not load latest returns for comparison', e);
+          latestReturns = {};
+        }
+      } else {
+        latestReturns = currentData.returns || {};
+      }
+
       render();
     } catch (err) {
       console.error(err);
@@ -340,10 +382,19 @@
     }
   }
 
-  function render() {
+  async function render() {
     updatedEl.textContent = currentData.timestamp || currentData.date || '';
 
-    const scanEntries = Object.entries(currentData.scans || {});
+    const scanEntries = Object.entries(currentData.scans || {}).map(([name, s]) => ({ name, s }));
+    // Stable ordering: use explicit numeric `order` if provided, otherwise sort by name.
+    scanEntries.sort((a, b) => {
+      const oa = (a.s && typeof a.s.order === 'number') ? a.s.order : null;
+      const ob = (b.s && typeof b.s.order === 'number') ? b.s.order : null;
+      if (oa !== null && ob !== null) return oa - ob;
+      if (oa !== null) return -1;
+      if (ob !== null) return 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
     if (!scanEntries.length) {
       sidebarEl.innerHTML = '<div class="sidebar-label">Scans</div>';
       contentEl.className = 'state';
@@ -351,9 +402,9 @@
       return;
     }
 
-    if (!activeScan) activeScan = scanEntries[0][0];
+    if (!activeScan) activeScan = scanEntries[0].name;
 
-    sidebarEl.innerHTML = '<div class="sidebar-label">Scans</div>' + scanEntries.map(([name, s]) => {
+    sidebarEl.innerHTML = '<div class="sidebar-label">Scans</div>' + scanEntries.map(({ name, s }) => {
       const count = s.count ?? (s.symbols || []).length;
       const isActive = name === activeScan;
       return `
@@ -371,20 +422,96 @@
       });
     });
 
-    renderPanel(activeScan, currentData.scans[activeScan]);
+    await renderPanel(activeScan, currentData.scans[activeScan]);
   }
 
   function fmtPct(val) {
     if (val === null || val === undefined) return '<span class="pct-na">—</span>';
     const cls = val > 0 ? 'pct-up' : (val < 0 ? 'pct-down' : 'pct-flat');
     const sign = val > 0 ? '+' : '';
-    return `<span class="${cls}">${sign}${val}%</span>`;
+    const num = Number(val).toFixed(2);
+    return `<span class="${cls}">${sign}${num}%</span>`;
   }
 
-  function renderPanel(name, s) {
+  async function renderPanel(name, s) {
+    // Helper: attempt to find a comparison price in `latestReturns` for various symbol formats
+    function findComparisonPrice(sym) {
+      if (!latestReturns) return null;
+      // direct lookup
+      if (latestReturns[sym] && latestReturns[sym].price != null) return { price: Number(latestReturns[sym].price), key: sym };
+      // try common variants
+      const upper = sym.toUpperCase();
+      const variants = [upper, upper + '.NS', 'NSE:' + upper, upper.replace(/[^A-Z0-9]/g, '')];
+      for (const v of variants) {
+        if (latestReturns[v] && latestReturns[v].price != null) return { price: Number(latestReturns[v].price), key: v };
+      }
+      // try fuzzy normalized match against all keys
+      const norm = s => String(s).replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      const target = norm(sym);
+      for (const k of Object.keys(latestReturns)) {
+        if (!k) continue;
+        if (norm(k) === target && latestReturns[k] && latestReturns[k].price != null) return { price: Number(latestReturns[k].price), key: k };
+      }
+      return null;
+    }
+
     const symbols = s.symbols || [];
+    // Fetch live/current prices (no fallback) and prefer them for comparison
+    const liveMap = await fetchLivePrices(symbols);
     const count = s.count ?? symbols.length;
     const returnsMap = currentData.returns || {};
+
+    // ensure a sort state exists for this scan
+    if (!sortStates[name]) sortStates[name] = { key: null, dir: 'asc' };
+    const state = sortStates[name];
+
+    // Build items with metadata for stable sorting, including comparison price and return pct
+    const items = symbols.map((sym, i) => {
+      const r = returnsMap[sym] || {};
+      const scanPrice = (r.price != null) ? Number(r.price) : null;
+      const live = (liveMap && liveMap[sym] != null) ? Number(liveMap[sym]) : null;
+      // No fallback: use live/current price only
+      const comp = live !== null ? live : null;
+      const compKey = comp !== null ? `${sym}.NS (live)` : null;
+      const ret = (scanPrice != null && comp != null && scanPrice !== 0) ? ((comp - scanPrice) / scanPrice) * 100 : null;
+      return { sym, i, r, scanPrice, comparisonPrice: comp, comparisonKey: compKey, ret };
+    });
+
+    // Apply sort if requested
+    if (state.key) {
+      const key = state.key;
+      items.sort((a, b) => {
+        let va, vb;
+        switch (key) {
+          case 'rank':
+            va = a.i; vb = b.i; break;
+          case 'symbol':
+            return (a.sym).localeCompare(b.sym, undefined, { sensitivity: 'base' }) * (state.dir === 'asc' ? 1 : -1);
+          case 'price':
+            va = (a.r.price == null ? Number.NEGATIVE_INFINITY : Number(a.r.price));
+            vb = (b.r.price == null ? Number.NEGATIVE_INFINITY : Number(b.r.price)); break;
+          case 'day':
+            va = (a.r.day == null ? Number.NEGATIVE_INFINITY : Number(a.r.day));
+            vb = (b.r.day == null ? Number.NEGATIVE_INFINITY : Number(b.r.day)); break;
+          case 'week':
+            va = (a.r.week == null ? Number.NEGATIVE_INFINITY : Number(a.r.week));
+            vb = (b.r.week == null ? Number.NEGATIVE_INFINITY : Number(b.r.week)); break;
+          case 'month':
+            va = (a.r.month == null ? Number.NEGATIVE_INFINITY : Number(a.r.month));
+            vb = (b.r.month == null ? Number.NEGATIVE_INFINITY : Number(b.r.month)); break;
+          case 'three_month':
+            va = (a.r.three_month == null ? Number.NEGATIVE_INFINITY : Number(a.r.three_month));
+            vb = (b.r.three_month == null ? Number.NEGATIVE_INFINITY : Number(b.r.three_month)); break;
+          case 'ret':
+            va = (a.ret == null ? Number.NEGATIVE_INFINITY : a.ret);
+            vb = (b.ret == null ? Number.NEGATIVE_INFINITY : b.ret); break;
+          default:
+            va = 0; vb = 0;
+        }
+        if (va === undefined || vb === undefined) return 0;
+        return (va - vb) * (state.dir === 'asc' ? 1 : -1);
+      });
+    }
 
     contentEl.className = '';
     contentEl.innerHTML = `
@@ -394,16 +521,44 @@
           <div class="stamp ${count ? '' : 'none'}">${count} match${count === 1 ? '' : 'es'}</div>
         </div>
         ${
-          symbols.length
+          items.length
             ? `<table class="ledger">
-                <thead><tr><th>#</th><th>Symbol</th><th>Price</th><th>Day</th><th>1W</th><th>1M</th><th>3M</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th class="sortable" data-key="rank"># ${state.key==='rank' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="symbol">Symbol ${state.key==='symbol' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="price">Price ${state.key==='price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="ret">Return ${state.key==='ret' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="day">Day ${state.key==='day' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="week">1W ${state.key==='week' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="month">1M ${state.key==='month' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="three_month">3M ${state.key==='three_month' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  ${symbols.map((sym, i) => {
-                    const r = returnsMap[sym] || {};
-                    return `<tr>
+                  ${items.map((it, i) => {
+                    const r = it.r || {};
+                    const scanPrice = it.scanPrice;
+                    const compPrice = it.comparisonPrice;
+                    const ret = it.ret;
+                    let tip = 'Return since scan: N/A';
+                    if (scanPrice != null && compPrice != null && scanPrice !== 0) {
+                      tip = `${ret >= 0 ? '+' : ''}${ret.toFixed(2)}% (₹${scanPrice.toFixed(2)} → ₹${compPrice.toFixed(2)})`;
+                      if (it.comparisonKey) tip += ` — key: ${it.comparisonKey}`;
+                    } else if (scanPrice != null && compPrice == null) {
+                      tip = `Scan price: ₹${scanPrice.toFixed(2)} (comparison price unavailable)`;
+                      console.debug('No comparison price found for', it.sym);
+                    } else if (scanPrice == null && compPrice != null) {
+                      tip = `Comparison price: ₹${compPrice.toFixed(2)} (scan price unavailable)`;
+                      if (it.comparisonKey) tip += ` — key: ${it.comparisonKey}`;
+                    }
+
+                                    return `<tr>
                       <td class="rank">${i + 1}</td>
-                      <td class="symbol"><a class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(sym)}" target="_blank" rel="noopener">${escapeHtml(sym)}</a></td>
-                      <td>${r.price != null ? '₹' + r.price : '<span class="pct-na">—</span>'}</td>
+                                      <td class="symbol"><a title="${escapeHtml(tip)}" class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(it.sym)}" target="_blank" rel="noopener">${escapeHtml(it.sym)}</a></td>
+                                      <td>${r.price != null ? '₹' + r.price : '<span class="pct-na">—</span>'}</td>
+                                      <td>${fmtPct(ret)}${it.comparisonKey ? ' <span style="font-size:0.75rem;color:var(--muted)">(' + escapeHtml(it.comparisonKey) + ')</span>' : ''}</td>
+                      
                       <td>${fmtPct(r.day)}</td>
                       <td>${fmtPct(r.week)}</td>
                       <td>${fmtPct(r.month)}</td>
@@ -416,7 +571,23 @@
         }
       </div>
     `;
+
+    // Wire up sortable headers
+    const ths = contentEl.querySelectorAll('th.sortable');
+    ths.forEach(th => {
+      th.style.cursor = 'pointer';
+      th.addEventListener('click', () => {
+        const key = th.getAttribute('data-key');
+        const st = sortStates[name] || { key: null, dir: 'asc' };
+        if (st.key === key) st.dir = st.dir === 'asc' ? 'desc' : 'asc';
+        else { st.key = key; st.dir = 'asc'; }
+        sortStates[name] = st;
+        renderPanel(name, s);
+      });
+    });
   }
+
+  // (No live toggle) 
 
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, m => ({
