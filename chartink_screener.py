@@ -27,6 +27,18 @@ def load_scans():
         return []
 
 
+def load_settings():
+    """Load shared dashboard and scan-history settings."""
+    with open('settings.json', 'r', encoding='utf-8') as f:
+        settings = json.load(f)
+
+    history_days = settings.get('history_days')
+    if isinstance(history_days, bool) or not isinstance(history_days, int) or history_days < 1:
+        raise ValueError("settings.json must define history_days as a positive integer")
+    return settings
+
+
+SETTINGS = load_settings()
 SCANS = load_scans()
 print(f"📋 Loaded {len(SCANS)} scans from scans.json")
 
@@ -112,7 +124,7 @@ def send_multi_scan_email(all_results):
         return False
 
 
-def cleanup_old_scans(db, days_to_keep=30):
+def cleanup_old_scans(db, days_to_keep=SETTINGS['history_days']):
     """Delete dated scan docs older than `days_to_keep` days. Leaves
     the 'latest' doc untouched."""
     from datetime import timedelta

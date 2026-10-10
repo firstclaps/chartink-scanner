@@ -295,14 +295,24 @@
 
   async function loadDateList() {
     try {
-      const q = query(collection(db, "scans"), orderBy("date", "desc"), limit(31));
+      const settingsResponse = await fetch("./settings.json");
+      if (!settingsResponse.ok) {
+        throw new Error(`Could not load settings.json (${settingsResponse.status})`);
+      }
+      const settings = await settingsResponse.json();
+      const historyDays = settings.history_days;
+      if (!Number.isInteger(historyDays) || historyDays < 1) {
+        throw new Error("settings.json must define history_days as a positive integer");
+      }
+
+      const q = query(collection(db, "scans"), orderBy("date", "desc"), limit(historyDays + 1));
       const snap = await getDocs(q);
 
       const dates = snap.docs
         .filter(d => d.id !== 'latest')
         .map(d => d.data().date)
         .filter(Boolean)
-        .slice(0, 30);
+        .slice(0, historyDays);
 
       if (!dates.length) {
         dateSelectEl.innerHTML = '<option>No data yet</option>';
