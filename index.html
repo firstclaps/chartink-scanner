@@ -288,11 +288,10 @@
 
   let currentData = null;
   let activeScan = null;
-  let latestQuoteTimestamp = null;
+  let latestPriceTimestamp = null;
+  let latestPrices = {};
   // Track sort state per-scan so sorting persists when switching scans
   const sortStates = {};
-  // Cached returns from the latest scan doc (used to compute return since scan)
-  let latestReturns = null;
 
   async function loadDateList() {
     try {
@@ -352,16 +351,16 @@
         try {
           const latestSnap = await getDoc(doc(db, "scans", "latest"));
           const latestData = latestSnap && latestSnap.exists() ? latestSnap.data() : null;
-          latestReturns = latestData ? (latestData.returns || {}) : {};
-          latestQuoteTimestamp = latestData ? (latestData.timestamp || latestData.date || null) : null;
+          latestPrices = latestData ? (latestData.latest_prices || {}) : {};
+          latestPriceTimestamp = latestData ? (latestData.timestamp || latestData.date || null) : null;
         } catch (e) {
-          console.warn('Could not load latest returns for comparison', e);
-          latestReturns = {};
-          latestQuoteTimestamp = null;
+          console.warn('Could not load latest Chartink prices', e);
+          latestPrices = {};
+          latestPriceTimestamp = null;
         }
       } else {
-        latestReturns = currentData.returns || {};
-        latestQuoteTimestamp = currentData.timestamp || currentData.date || null;
+        latestPrices = currentData.latest_prices || {};
+        latestPriceTimestamp = currentData.timestamp || currentData.date || null;
       }
 
       render();
@@ -424,30 +423,36 @@
   }
 
   async function renderPanel(name, s) {
-    // Helper: attempt to find a comparison price in `latestReturns` for various symbol formats
-    function findComparisonPrice(sym) {
-      if (!latestReturns) return null;
-      // direct lookup
-      if (latestReturns[sym] && latestReturns[sym].price != null) return { price: Number(latestReturns[sym].price), key: sym };
-      // try common variants
+    // Helper: find a Chartink price using common symbol formats.
+    function findPrice(priceMap, sym) {
+      if (!priceMap) return null;
+      const getPrice = key => {
+        const price = Number(priceMap[key]);
+        return Number.isFinite(price) && price > 0 ? price : null;
+      };
+      const directPrice = getPrice(sym);
+      if (directPrice !== null) return { price: directPrice, key: sym };
+
       const upper = sym.toUpperCase();
       const variants = [upper, upper + '.NS', 'NSE:' + upper, upper.replace(/[^A-Z0-9]/g, '')];
       for (const v of variants) {
-        if (latestReturns[v] && latestReturns[v].price != null) return { price: Number(latestReturns[v].price), key: v };
+        const price = getPrice(v);
+        if (price !== null) return { price, key: v };
       }
-      // try fuzzy normalized match against all keys
       const norm = s => String(s).replace(/[^A-Z0-9]/gi, '').toUpperCase();
       const target = norm(sym);
-      for (const k of Object.keys(latestReturns)) {
+      for (const k of Object.keys(priceMap)) {
         if (!k) continue;
-        if (norm(k) === target && latestReturns[k] && latestReturns[k].price != null) return { price: Number(latestReturns[k].price), key: k };
+        const price = getPrice(k);
+        if (norm(k) === target && price !== null) return { price, key: k };
       }
       return null;
     }
 
     const symbols = s.symbols || [];
     const count = s.count ?? symbols.length;
-    const returnsMap = currentData.returns || {};
+    const returnsMap = currentData.price_source === 'chartink' ? (currentData.returns || {}) : {};
+    const scanPrices = currentData.latest_prices || {};
 
     // ensure a sort state exists for this scan
     if (!sortStates[name]) sortStates[name] = { key: null, dir: 'asc' };
@@ -456,8 +461,9 @@
     // Build items with metadata for stable sorting, including comparison price and return pct
     const items = symbols.map((sym, i) => {
       const r = returnsMap[sym] || {};
-      const scanPrice = (r.price != null) ? Number(r.price) : null;
-      const latestQuote = findComparisonPrice(sym);
+      const scanQuote = findPrice(scanPrices, sym);
+      const scanPrice = scanQuote ? scanQuote.price : null;
+      const latestQuote = findPrice(latestPrices, sym);
       const comp = latestQuote ? latestQuote.price : null;
       const compKey = latestQuote ? latestQuote.key : null;
       const ret = (scanPrice != null && comp != null && scanPrice !== 0) ? ((comp - scanPrice) / scanPrice) * 100 : null;
@@ -475,8 +481,8 @@
           case 'symbol':
             return (a.sym).localeCompare(b.sym, undefined, { sensitivity: 'base' }) * (state.dir === 'asc' ? 1 : -1);
           case 'price':
-            va = (a.r.price == null ? Number.NEGATIVE_INFINITY : Number(a.r.price));
-            vb = (b.r.price == null ? Number.NEGATIVE_INFINITY : Number(b.r.price)); break;
+            va = (a.scanPrice == null ? Number.NEGATIVE_INFINITY : a.scanPrice);
+            vb = (b.scanPrice == null ? Number.NEGATIVE_INFINITY : b.scanPrice); break;
           case 'current_price':
             va = (a.currentPrice == null ? Number.NEGATIVE_INFINITY : a.currentPrice);
             vb = (b.currentPrice == null ? Number.NEGATIVE_INFINITY : b.currentPrice); break;
@@ -518,7 +524,7 @@
                     <th class="sortable" data-key="rank"># ${state.key==='rank' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="symbol">Symbol ${state.key==='symbol' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="price">Price ${state.key==='price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
-                    <th class="sortable" data-key="current_price" title="Latest price saved by the scanner; not an intraday live quote">Latest Price ${state.key==='current_price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="current_price" title="Latest price returned by Chartink for this scan">Chartink Price ${state.key==='current_price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="ret">Return ${state.key==='ret' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="day">Day ${state.key==='day' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="week">1W ${state.key==='week' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
@@ -548,8 +554,8 @@
                                     return `<tr>
                       <td class="rank">${i + 1}</td>
                                       <td class="symbol"><a title="${escapeHtml(tip)}" class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(it.sym)}" target="_blank" rel="noopener">${escapeHtml(it.sym)}</a></td>
-                                      <td>${r.price != null ? '₹' + r.price : '<span class="pct-na">—</span>'}</td>
-                                      <td title="${latestQuoteTimestamp ? `Latest saved Yahoo Finance price as of ${escapeHtml(latestQuoteTimestamp)}` : 'Latest saved Yahoo Finance price; not an intraday live quote'}">${currentPrice != null ? '₹' + currentPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
+                                      <td>${scanPrice != null ? '₹' + scanPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
+                                      <td title="${latestPriceTimestamp ? `Latest Chartink scan price as of ${escapeHtml(latestPriceTimestamp)}` : 'Latest price returned by Chartink'}">${currentPrice != null ? '₹' + currentPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
                                       <td>${fmtPct(ret)}${it.comparisonKey ? ' <span style="font-size:0.75rem;color:var(--muted)">(' + escapeHtml(it.comparisonKey) + ')</span>' : ''}</td>
                       
                       <td>${fmtPct(r.day)}</td>
