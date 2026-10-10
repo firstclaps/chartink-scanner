@@ -17,6 +17,6 @@
   },
   {
     "name": "New ATh",
-    "clause": "( {57960}  (  1 day ago close <  1 day ago max( 252 ,  1 day ago close ) and  daily close =  daily max( 252 ,  daily close ) ) )"
+    "clause": "( {cash}  (  1 day ago close <  1 day ago max( 252 ,  1 day ago close ) and  daily close =  daily max( 252 ,  daily close ) ) )"
   }
 ]
