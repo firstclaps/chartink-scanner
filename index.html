@@ -288,6 +288,7 @@
 
   let currentData = null;
   let activeScan = null;
+  let latestQuoteTimestamp = null;
   // Track sort state per-scan so sorting persists when switching scans
   const sortStates = {};
   // Cached returns from the latest scan doc (used to compute return since scan)
@@ -330,31 +331,6 @@
     }
   }
 
-  // Fetch current/live prices for a list of symbols using Yahoo Finance (no API key)
-  async function fetchLivePrices(symbols) {
-    const uniq = Array.from(new Set((symbols || []).filter(Boolean)));
-    if (!uniq.length) return {};
-    // Yahoo expects NSE symbols with .NS suffix
-    const q = uniq.map(s => encodeURIComponent(s + '.NS')).join(',');
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${q}`;
-    try {
-      const resp = await fetch(url);
-      const json = await resp.json();
-      const results = (json && json.quoteResponse && json.quoteResponse.result) || [];
-      const map = {};
-      results.forEach(r => {
-        const full = r.symbol || '';
-        const sym = full.replace(/\.NS$/i, '');
-        if (r.regularMarketPrice != null) map[sym] = Number(r.regularMarketPrice);
-      });
-      return map;
-    } catch (e) {
-      console.warn('Live price fetch failed', e);
-      return {};
-    }
-  }
-
-
   async function loadScans(dateId) {
     contentEl.className = 'state';
     contentEl.textContent = 'Fetching scan…';
@@ -375,13 +351,17 @@
       if (docId !== 'latest') {
         try {
           const latestSnap = await getDoc(doc(db, "scans", "latest"));
-          latestReturns = latestSnap && latestSnap.exists() ? (latestSnap.data().returns || {}) : {};
+          const latestData = latestSnap && latestSnap.exists() ? latestSnap.data() : null;
+          latestReturns = latestData ? (latestData.returns || {}) : {};
+          latestQuoteTimestamp = latestData ? (latestData.timestamp || latestData.date || null) : null;
         } catch (e) {
           console.warn('Could not load latest returns for comparison', e);
           latestReturns = {};
+          latestQuoteTimestamp = null;
         }
       } else {
         latestReturns = currentData.returns || {};
+        latestQuoteTimestamp = currentData.timestamp || currentData.date || null;
       }
 
       render();
@@ -466,8 +446,6 @@
     }
 
     const symbols = s.symbols || [];
-    // Fetch live/current prices (no fallback) and prefer them for comparison
-    const liveMap = await fetchLivePrices(symbols);
     const count = s.count ?? symbols.length;
     const returnsMap = currentData.returns || {};
 
@@ -479,12 +457,11 @@
     const items = symbols.map((sym, i) => {
       const r = returnsMap[sym] || {};
       const scanPrice = (r.price != null) ? Number(r.price) : null;
-      const live = (liveMap && liveMap[sym] != null) ? Number(liveMap[sym]) : null;
-      // No fallback: use live/current price only
-      const comp = live !== null ? live : null;
-      const compKey = comp !== null ? `${sym}.NS (live)` : null;
+      const latestQuote = findComparisonPrice(sym);
+      const comp = latestQuote ? latestQuote.price : null;
+      const compKey = latestQuote ? latestQuote.key : null;
       const ret = (scanPrice != null && comp != null && scanPrice !== 0) ? ((comp - scanPrice) / scanPrice) * 100 : null;
-      return { sym, i, r, scanPrice, comparisonPrice: comp, comparisonKey: compKey, ret };
+      return { sym, i, r, scanPrice, currentPrice: comp, comparisonPrice: comp, comparisonKey: compKey, ret };
     });
 
     // Apply sort if requested
@@ -500,6 +477,9 @@
           case 'price':
             va = (a.r.price == null ? Number.NEGATIVE_INFINITY : Number(a.r.price));
             vb = (b.r.price == null ? Number.NEGATIVE_INFINITY : Number(b.r.price)); break;
+          case 'current_price':
+            va = (a.currentPrice == null ? Number.NEGATIVE_INFINITY : a.currentPrice);
+            vb = (b.currentPrice == null ? Number.NEGATIVE_INFINITY : b.currentPrice); break;
           case 'day':
             va = (a.r.day == null ? Number.NEGATIVE_INFINITY : Number(a.r.day));
             vb = (b.r.day == null ? Number.NEGATIVE_INFINITY : Number(b.r.day)); break;
@@ -538,6 +518,7 @@
                     <th class="sortable" data-key="rank"># ${state.key==='rank' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="symbol">Symbol ${state.key==='symbol' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="price">Price ${state.key==='price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="current_price" title="Latest price saved by the scanner; not an intraday live quote">Latest Price ${state.key==='current_price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="ret">Return ${state.key==='ret' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="day">Day ${state.key==='day' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="week">1W ${state.key==='week' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
@@ -549,6 +530,7 @@
                   ${items.map((it, i) => {
                     const r = it.r || {};
                     const scanPrice = it.scanPrice;
+                    const currentPrice = it.currentPrice;
                     const compPrice = it.comparisonPrice;
                     const ret = it.ret;
                     let tip = 'Return since scan: N/A';
@@ -567,6 +549,7 @@
                       <td class="rank">${i + 1}</td>
                                       <td class="symbol"><a title="${escapeHtml(tip)}" class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(it.sym)}" target="_blank" rel="noopener">${escapeHtml(it.sym)}</a></td>
                                       <td>${r.price != null ? '₹' + r.price : '<span class="pct-na">—</span>'}</td>
+                                      <td title="${latestQuoteTimestamp ? `Latest saved Yahoo Finance price as of ${escapeHtml(latestQuoteTimestamp)}` : 'Latest saved Yahoo Finance price; not an intraday live quote'}">${currentPrice != null ? '₹' + currentPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
                                       <td>${fmtPct(ret)}${it.comparisonKey ? ' <span style="font-size:0.75rem;color:var(--muted)">(' + escapeHtml(it.comparisonKey) + ')</span>' : ''}</td>
                       
                       <td>${fmtPct(r.day)}</td>
