@@ -452,8 +452,8 @@
 
     const symbols = s.symbols || [];
     const count = s.count ?? symbols.length;
-    const returnsMap = currentData.price_source === 'chartink' ? (currentData.returns || {}) : {};
-    const scanPrices = currentData.latest_prices || {};
+    const returnsMap = currentData.returns || {};
+    const scanPrices = currentData.scan_prices || currentData.latest_prices || {};
 
     // ensure a sort state exists for this scan
     if (!sortStates[name]) sortStates[name] = { key: null, dir: 'asc' };
@@ -524,9 +524,9 @@
                   <tr>
                     <th class="sortable" data-key="rank"># ${state.key==='rank' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="symbol">Symbol ${state.key==='symbol' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
-                    <th class="sortable" data-key="price">Price ${state.key==='price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
-                    <th class="sortable" data-key="current_price" title="Latest price returned by Chartink for this scan">Chartink Price ${state.key==='current_price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
-                    <th class="sortable" data-key="ret">Return ${state.key==='ret' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="price">Scan Price ${state.key==='price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="current_price" title="Latest price returned by Yahoo Finance">Current Price ${state.key==='current_price' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
+                    <th class="sortable" data-key="ret">Return % ${state.key==='ret' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="day">Day ${state.key==='day' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="week">1W ${state.key==='week' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
                     <th class="sortable" data-key="month">1M ${state.key==='month' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
@@ -556,7 +556,7 @@
                       <td class="rank">${i + 1}</td>
                                       <td class="symbol"><a title="${escapeHtml(tip)}" class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(it.sym)}" target="_blank" rel="noopener">${escapeHtml(it.sym)}</a></td>
                                       <td>${scanPrice != null ? '₹' + scanPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
-                                      <td title="${latestPriceTimestamp ? `Latest Chartink scan price as of ${escapeHtml(latestPriceTimestamp)}` : 'Latest price returned by Chartink'}">${currentPrice != null ? '₹' + currentPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
+                                      <td title="${latestPriceTimestamp ? `Latest Yahoo Finance price as of ${escapeHtml(latestPriceTimestamp)}` : 'Latest price returned by Yahoo Finance'}">${currentPrice != null ? '₹' + currentPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
                                       <td>${fmtPct(ret)}${it.comparisonKey ? ' <span style="font-size:0.75rem;color:var(--muted)">(' + escapeHtml(it.comparisonKey) + ')</span>' : ''}</td>
                       
                       <td>${fmtPct(r.day)}</td>

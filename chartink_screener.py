@@ -3,13 +3,13 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
+import math
 import os
 import json
-import re
-import time
 
 import firebase_admin
 from firebase_admin import credentials, firestore
+import yfinance as yf
 
 # GitHub Secrets
 EMAIL = os.getenv('EMAIL')
@@ -99,58 +99,36 @@ def fetch_chartink_scan(scan_name, scan_clause):
 def run_all_scans():
     """Run ALL scans"""
     all_results = {}
-    chartink_prices = {}
+    scan_prices = {}
     print("🔍 Running multi-scan...")
 
     for scan in SCANS:
         print(f"  📊 {scan['name']}")
         symbols, prices = fetch_chartink_scan(scan['name'], scan['clause'])
         all_results[scan['name']] = symbols
-        chartink_prices.update(prices)
+        scan_prices.update(prices)
         print(f"     {len(symbols)} stocks")
 
-    return all_results, chartink_prices
+    return all_results, scan_prices
 
 
-def fetch_chartink_prices(symbols):
-    """Fetch current Chartink prices for symbols, including those no longer matching a scan."""
-    if not symbols:
-        return {}
-
-    session = requests.Session()
-    page = session.get("https://chartink.com/screener", timeout=20)
-    page.raise_for_status()
-    soup = BeautifulSoup(page.text, "html.parser")
-    token_element = soup.select_one('meta[name="csrf-token"]')
-    if token_element is None or not token_element.get("content"):
-        raise ValueError("Chartink response did not contain a CSRF token")
-    session.headers.update({
-        "X-CSRF-TOKEN": token_element["content"],
-        "Content-Type": "application/x-www-form-urlencoded",
-    })
-
+def fetch_yfinance_prices(symbols):
+    """Fetch current NSE prices for symbols, including those no longer matching a scan."""
     prices = {}
     for symbol in sorted(set(symbols)):
-        if not re.fullmatch(r"[A-Z0-9&.-]+", symbol):
-            print(f"  ⚠️ Skipping unsupported Chartink symbol {symbol!r}")
-            continue
-
-        clause = f"( {{cash}} ( symbol = '{symbol}' ) )"
-        response = session.post(
-            "https://chartink.com/screener/process",
-            data={"scan_clause": clause},
-            timeout=30,
-        )
-        response.raise_for_status()
-        rows = response.json().get("data", [])
-        for row in rows:
-            if isinstance(row, dict) and row.get("nsecode") == symbol and row.get("close") is not None:
-                prices[symbol] = float(row["close"])
-                break
-        else:
-            print(f"  ⚠️ Chartink returned no price for {symbol}")
-
-        time.sleep(0.15)
+        ticker_symbol = symbol.upper()
+        if not ticker_symbol.endswith(".NS"):
+            ticker_symbol += ".NS"
+        try:
+            price = yf.Ticker(ticker_symbol).fast_info["last_price"]
+            if price is None:
+                raise ValueError("Yahoo Finance returned no last price")
+            price = float(price)
+            if not math.isfinite(price) or price <= 0:
+                raise ValueError(f"Yahoo Finance returned an invalid price: {price!r}")
+            prices[symbol] = price
+        except Exception as e:
+            print(f"  ⚠️ Could not fetch Yahoo Finance price for {symbol}: {e}")
 
     return prices
 
@@ -250,7 +228,7 @@ def compute_returns(current_prices, history_docs, as_of):
     return returns
 
 
-def push_to_firestore(all_results, chartink_prices):
+def push_to_firestore(all_results, scan_prices):
     """Push today's scan results to Firestore so the GitHub Pages
     dashboard can read them. Writes both a dated doc (history) and a
     'latest' doc (what the page loads by default)."""
@@ -284,15 +262,14 @@ def push_to_firestore(all_results, chartink_prices):
         }
         for historical_doc in history_docs:
             tracked_symbols.update((historical_doc.get('latest_prices') or {}).keys())
+            tracked_symbols.update((historical_doc.get('scan_prices') or {}).keys())
             for scan_data in (historical_doc.get('scans') or {}).values():
                 tracked_symbols.update(scan_data.get('symbols') or [])
 
-        missing_prices = tracked_symbols.difference(chartink_prices)
-        if missing_prices:
-            print(f"📈 Fetching Chartink prices for {len(missing_prices)} previously scanned symbols...")
-            chartink_prices.update(fetch_chartink_prices(missing_prices))
+        print(f"📈 Fetching Yahoo Finance prices for {len(tracked_symbols)} tracked symbols...")
+        current_prices = fetch_yfinance_prices(tracked_symbols)
 
-        returns_map = compute_returns(chartink_prices, history_docs, today)
+        returns_map = compute_returns(current_prices, history_docs, today)
 
         doc_data = {
             "date": today,
@@ -305,8 +282,9 @@ def push_to_firestore(all_results, chartink_prices):
                 for scan_name, symbols in all_results.items()
             },
             "returns": returns_map,
-            "latest_prices": chartink_prices,
-            "price_source": "chartink",
+            "scan_prices": scan_prices,
+            "latest_prices": current_prices,
+            "price_source": "yfinance",
         }
 
         # dated doc = history, 'latest' = what the dashboard reads
@@ -323,8 +301,8 @@ def push_to_firestore(all_results, chartink_prices):
 
 
 # MAIN EXECUTION
-all_results, chartink_prices = run_all_scans()
-push_to_firestore(all_results, chartink_prices)
+all_results, scan_prices = run_all_scans()
+push_to_firestore(all_results, scan_prices)
 today_str = datetime.now().strftime('%Y-%m-%d')
 print(f"🕐 Multi-Scan: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
 
