@@ -222,6 +222,15 @@
   }
   .sym-link:hover { text-decoration: underline; }
 
+  .screener-link {
+    display: inline-flex;
+    margin-left: 7px;
+    color: var(--muted);
+    vertical-align: -2px;
+  }
+  .screener-link:hover { color: var(--blue); }
+  .screener-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
   .empty-note {
     padding: 30px 20px;
     text-align: center;
@@ -466,7 +475,10 @@
     const items = symbols.map((sym, i) => {
       const r = returnsMap[sym] || {};
       const scanQuote = findPrice(scanPrices, sym) || findPrice(legacyScanPrices, sym);
-      const scanPrice = scanQuote ? scanQuote.price : null;
+      const recordedPrice = Number(r.price);
+      const scanPrice = scanQuote
+        ? scanQuote.price
+        : (Number.isFinite(recordedPrice) && recordedPrice > 0 ? recordedPrice : null);
       const latestQuote = findPrice(latestPrices, sym);
       const comp = latestQuote ? latestQuote.price : null;
       const compKey = latestQuote ? latestQuote.key : null;
@@ -557,10 +569,10 @@
 
                                     return `<tr>
                       <td class="rank">${i + 1}</td>
-                                      <td class="symbol"><a title="${escapeHtml(tip)}" class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(it.sym)}" target="_blank" rel="noopener">${escapeHtml(it.sym)}</a></td>
+                                      <td class="symbol"><a title="${escapeHtml(tip)}" class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(it.sym)}" target="_blank" rel="noopener">${escapeHtml(it.sym)}</a><a class="screener-link" href="https://www.screener.in/company/${encodeURIComponent(it.sym)}/consolidated/" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHtml(it.sym)} on Screener.in" title="Open on Screener.in"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 2h5v5M14 2 7 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a></td>
                                       <td>${scanPrice != null ? '₹' + scanPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
                                       <td title="${latestPriceTimestamp ? `Latest Yahoo Finance price as of ${escapeHtml(latestPriceTimestamp)}` : 'Latest price returned by Yahoo Finance'}">${currentPrice != null ? '₹' + currentPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
-                                      <td>${fmtPct(ret)}${it.comparisonKey ? ' <span style="font-size:0.75rem;color:var(--muted)">(' + escapeHtml(it.comparisonKey) + ')</span>' : ''}</td>
+                                      <td>${fmtPct(ret)}</td>
                       
                       <td>${fmtPct(r.day)}</td>
                       <td>${fmtPct(r.week)}</td>
