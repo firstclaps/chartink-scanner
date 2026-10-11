@@ -74,15 +74,17 @@
   /* ---------- Layout ---------- */
   .layout {
     display: grid;
-    grid-template-columns: 260px 1fr;
-    max-width: 1180px;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    max-width: 1440px;
     margin: 24px auto;
     gap: 20px;
-    padding: 0 32px;
+    padding: 0 24px;
   }
 
   @media (max-width: 760px) {
-    .layout { grid-template-columns: 1fr; margin: 16px auto; padding: 0 16px; }
+    .layout { grid-template-columns: minmax(0, 1fr); margin: 16px auto; padding: 0 16px; }
+    .sidebar { grid-column: 1; grid-row: 2; }
+    main { grid-column: 1; grid-row: 1; }
   }
 
   /* ---------- Sidebar (tabs) ---------- */
@@ -92,6 +94,8 @@
     border-radius: 8px;
     padding: 8px 0;
     align-self: start;
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .sidebar-label {
@@ -111,7 +115,7 @@
     width: 100%;
     background: none;
     border: none;
-    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
     text-align: left;
     padding: 11px 20px;
     font-family: 'Inter', sans-serif;
@@ -124,7 +128,7 @@
   .tab:hover { background: var(--blue-tint); }
 
   .tab.active {
-    border-left-color: var(--blue);
+    border-right-color: var(--blue);
     background: var(--blue-tint);
     color: var(--blue);
   }
@@ -140,7 +144,7 @@
   .tab.active .tab-count { color: #FFFFFF; background: var(--blue); }
 
   /* ---------- Main ---------- */
-  main { min-width: 0; }
+  main { min-width: 0; grid-column: 1; grid-row: 1; }
 
   .state {
     color: var(--muted);
@@ -184,8 +188,12 @@
 
   table.ledger {
     width: 100%;
+    min-width: 760px;
     border-collapse: collapse;
+    table-layout: fixed;
   }
+
+  .table-wrap { overflow-x: auto; }
 
   table.ledger thead th {
     text-align: left;
@@ -194,13 +202,13 @@
     text-transform: uppercase;
     color: var(--muted);
     font-weight: 600;
-    padding: 10px 20px;
+    padding: 10px 9px;
     background: #FAFBFC;
     border-bottom: 1px solid var(--rule);
   }
 
   table.ledger tbody td {
-    padding: 11px 20px;
+    padding: 11px 9px;
     border-bottom: 1px solid var(--rule);
     font-size: 0.9rem;
   }
@@ -208,13 +216,13 @@
   table.ledger tbody tr:last-child td { border-bottom: none; }
   table.ledger tbody tr:hover td { background: var(--blue-tint); }
 
-  td.rank {
+  td.rank, th[data-key="rank"] {
     color: var(--muted);
-    width: 48px;
+    width: 38px;
     font-variant-numeric: tabular-nums;
   }
 
-  td.symbol { font-weight: 600; }
+  td.symbol { font-weight: 600; white-space: nowrap; }
 
   .sym-link {
     color: var(--blue);
@@ -224,10 +232,15 @@
 
   .screener-link {
     display: inline-flex;
-    margin-left: 7px;
+    width: 17px;
+    height: 17px;
+    align-items: center;
+    justify-content: center;
+    margin-left: 5px;
     color: var(--muted);
     vertical-align: -2px;
   }
+  .screener-link img { display: block; width: 16px; height: 16px; }
   .screener-link:hover { color: var(--blue); }
   .screener-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
@@ -355,7 +368,6 @@
       }
 
       currentData = snap.data();
-      activeScan = null;
       // Fetch the `latest` doc so we can compute returns from this scan date to the latest checking date.
       if (docId !== 'latest') {
         try {
@@ -401,7 +413,7 @@
       return;
     }
 
-    if (!activeScan) activeScan = scanEntries[0].name;
+    if (!activeScan || !currentData.scans[activeScan]) activeScan = scanEntries[0].name;
 
     sidebarEl.innerHTML = '<div class="sidebar-label">Scans</div>' + scanEntries.map(({ name, s }) => {
       const count = s.count ?? (s.symbols || []).length;
@@ -534,7 +546,7 @@
         </div>
         ${
           items.length
-            ? `<table class="ledger">
+            ? `<div class="table-wrap"><table class="ledger">
                 <thead>
                   <tr>
                     <th class="sortable" data-key="rank"># ${state.key==='rank' ? (state.dir==='asc' ? '▲' : '▼') : ''}</th>
@@ -569,7 +581,7 @@
 
                                     return `<tr>
                       <td class="rank">${i + 1}</td>
-                                      <td class="symbol"><a title="${escapeHtml(tip)}" class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(it.sym)}" target="_blank" rel="noopener">${escapeHtml(it.sym)}</a><a class="screener-link" href="https://www.screener.in/company/${encodeURIComponent(it.sym)}/consolidated/" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHtml(it.sym)} on Screener.in" title="Open on Screener.in"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 2h5v5M14 2 7 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a></td>
+                                      <td class="symbol"><a title="${escapeHtml(tip)}" class="sym-link" href="https://www.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(it.sym)}" target="_blank" rel="noopener">${escapeHtml(it.sym)}</a><a class="screener-link" href="https://www.screener.in/company/${encodeURIComponent(it.sym)}/consolidated/" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHtml(it.sym)} on Screener.in" title="Open on Screener.in"><img src="https://www.screener.in/favicon.ico" alt=""></a></td>
                                       <td>${scanPrice != null ? '₹' + scanPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
                                       <td title="${latestPriceTimestamp ? `Latest Yahoo Finance price as of ${escapeHtml(latestPriceTimestamp)}` : 'Latest price returned by Yahoo Finance'}">${currentPrice != null ? '₹' + currentPrice.toFixed(2) : '<span class="pct-na">—</span>'}</td>
                                       <td>${fmtPct(ret)}</td>
@@ -581,7 +593,7 @@
                     </tr>`;
                   }).join('')}
                 </tbody>
-               </table>`
+               </table></div>`
             : `<div class="empty-note">No stocks matched this scan on this date</div>`
         }
       </div>
