@@ -453,7 +453,10 @@
     const symbols = s.symbols || [];
     const count = s.count ?? symbols.length;
     const returnsMap = currentData.returns || {};
-    const scanPrices = currentData.scan_prices || currentData.latest_prices || {};
+    const scanPrices = currentData.scan_prices || {};
+    const legacyScanPrices = currentData.price_source === 'yfinance'
+      ? {}
+      : (currentData.latest_prices || {});
 
     // ensure a sort state exists for this scan
     if (!sortStates[name]) sortStates[name] = { key: null, dir: 'asc' };
@@ -462,7 +465,7 @@
     // Build items with metadata for stable sorting, including comparison price and return pct
     const items = symbols.map((sym, i) => {
       const r = returnsMap[sym] || {};
-      const scanQuote = findPrice(scanPrices, sym);
+      const scanQuote = findPrice(scanPrices, sym) || findPrice(legacyScanPrices, sym);
       const scanPrice = scanQuote ? scanQuote.price : null;
       const latestQuote = findPrice(latestPrices, sym);
       const comp = latestQuote ? latestQuote.price : null;
